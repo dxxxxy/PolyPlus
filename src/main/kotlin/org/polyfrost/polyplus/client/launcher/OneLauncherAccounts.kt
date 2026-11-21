@@ -66,6 +66,8 @@ object OneLauncherAccounts {
     }
 
     fun remove(id: UUID): Boolean {
+        // accounts are removed in OneClient itself
+        if (OneClient.brokered) return false
         val store = LauncherAccountStore.load()
         val key = store.users.keys.firstOrNull { LauncherAccountStore.parseUuid(it) == id }
             ?: return SessionAccounts.dismiss(id)
@@ -75,7 +77,14 @@ object OneLauncherAccounts {
         return true
     }
 
-    suspend fun beginLogin(): MicrosoftAuth.MicrosoftLoginSession = MicrosoftAuth.beginLogin()
+    suspend fun beginLogin(): MicrosoftAuth.MicrosoftLoginSession {
+        if (OneClient.brokered) {
+            // signing in here would put a real token in the game
+            OneClient.addAccount()
+            error("Sign in from the OneClient window. The new account shows up here afterwards.")
+        }
+        return MicrosoftAuth.beginLogin()
+    }
 
     suspend fun finishLogin(session: MicrosoftAuth.MicrosoftLoginSession): Account {
         val account = MicrosoftAuth.finishLogin(session)
@@ -86,6 +95,13 @@ object OneLauncherAccounts {
     fun cancelLogin(session: MicrosoftAuth.MicrosoftLoginSession) = MicrosoftAuth.cancelLogin(session)
 
     suspend fun refresh(id: UUID, refreshClient: Boolean = true): Account {
+        if (OneClient.brokered) {
+            // OneClient's broker always holds a fresh token
+            val current = OneClient.credentials()
+            val stored = current.users.values.firstOrNull { LauncherAccountStore.parseUuid(it.id) == id }
+                ?: error("That account isn't in OneClient any more")
+            return stored.toAccount(active = current.defaultUser == stored.id)
+        }
         val store = LauncherAccountStore.load()
         val key = store.users.keys.firstOrNull { LauncherAccountStore.parseUuid(it) == id }
             ?: error("Account not found")
@@ -110,6 +126,7 @@ object OneLauncherAccounts {
     }
 
     fun addOffline(rawUsername: String): Account {
+        require(!OneClient.brokered) { "Add accounts in OneClient" }
         val username = rawUsername.trim()
         val store = LauncherAccountStore.load()
         val session = SessionAccounts.transientAccount(store)

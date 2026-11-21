@@ -15,6 +15,7 @@ import net.minecraft.util.Utils
 import org.polyfrost.oneconfig.api.platform.v1.DesktopHelper
 import org.polyfrost.oneconfig.utils.v1.Multithreading
 *///?}
+import org.polyfrost.polyplus.client.launcher.OneClient
 import java.io.File
 import java.io.IOException
 import java.nio.file.AtomicMoveNotSupportedException
@@ -190,6 +191,8 @@ internal object PackFiles {
     }
 
     fun reveal(path: Path) {
+        // OneClient's sandbox can't start the file manager; the launcher can
+        if (OneClient.sandboxed && OneClient.reveal(path)) return
         val command = when (os) {
             Os.Windows -> listOf("explorer.exe", "/select,${path.toAbsolutePath()}")
             Os.Mac -> listOf("open", "-R", path.toAbsolutePath().toString())
@@ -201,6 +204,8 @@ internal object PackFiles {
     }
 
     private fun toTrash(path: Path): Boolean {
+        // OneClient's sandbox can't run the programs below; the launcher trashes files inside the instance
+        if (OneClient.sandboxed) return OneClient.trash(path) && !Files.exists(path, LinkOption.NOFOLLOW_LINKS)
         val absolute = path.toAbsolutePath().toString()
         val command = when (os) {
             Os.Windows -> {
