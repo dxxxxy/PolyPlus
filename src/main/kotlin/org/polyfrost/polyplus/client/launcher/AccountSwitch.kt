@@ -37,6 +37,8 @@ object AccountSwitch {
 
     fun apply(account: LauncherAccountStore.StoredAccount): Boolean = runCatching {
         val newId = LauncherAccountStore.parseUuid(account.id) ?: error("bad account id ${account.id}")
+        // OneClient's broker answers for the other account from now on; the game keeps its fake token
+        if (OneClient.brokered && !OneClient.switchAccount(account.id)) return false
         val microsoft = account.kind.equals("microsoft", ignoreCase = true)
         //? if > 1.8.9 {
         val profile = fetchProfile(newId)

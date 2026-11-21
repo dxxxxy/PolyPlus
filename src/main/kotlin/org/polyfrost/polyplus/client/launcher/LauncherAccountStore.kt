@@ -36,6 +36,8 @@ object LauncherAccountStore {
     )
 
     fun load(): CredentialsStore {
+        // OneClient's broker: the accounts by name, never the launcher's file of real tokens
+        if (OneClient.brokered) return OneClient.credentials()
         val file = authFile() ?: return CredentialsStore()
         return runCatching {
             PolyPlusClient.JSON.decodeFromString(CredentialsStore.serializer(), file.readText())
@@ -46,6 +48,8 @@ object LauncherAccountStore {
     }
 
     fun save(store: CredentialsStore) {
+        // OneClient keeps its own accounts
+        if (OneClient.brokered) return
         val file = authFileForWrite() ?: run {
             LOGGER.warn("No writable launcher directory found; cannot save accounts")
             return
